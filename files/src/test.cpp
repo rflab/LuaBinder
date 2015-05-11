@@ -43,15 +43,17 @@ int main(int argc, char** argv)
 
 	// lua実行
 	lua->dostring(
-		"func1()                  \n"  // 関数テスト
-		"print(func2(100))        \n"
-		"print(func3(200))        \n"
-		"print(func3(\"hoge\"))   \n"
-		"c = Test.new()           \n"  // クラスインスタンス化
-		"c:func1()                \n"  // メンバ関数テスト
-		"print(c:func2(100))      \n"
-		"print(c:func3(200))      \n"
-		"print(c:func4(\"foo\")) \n");
+		"func1()                     \n"   // 関数テスト
+		"print(func2(100))           \n"
+		"print(func3(200))           \n"
+		"print(func3(\"hoge\"))      \n"
+		"c = Test.new()              \n"   // クラスインスタンス化
+		"c:func1()                   \n"   // メンバ関数テスト
+		"print(c:func2(100))         \n"
+		"print(c:func3(200))         \n"
+		"print(c:func4(\"foo\"))     \n"
+		"c = nil                     \n"   // インスタンス破棄
+		"collectgarbage(\"collect\") \n");
 
 	// for windows console
 	cout << "wait input..";
