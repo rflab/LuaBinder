@@ -6,9 +6,9 @@ luabindが非常に難解だったので、xxluaを参考にしました。
 
 ## ビルド・インストール
 とりあえずLua5.3.0＆VC++12＆gcc (Ubuntu 4.9.2-10ubuntu13) 4.9.2でビルド確認済み
-* VC++の場合はsrcを全部突っ込んで、src/luaをインクルードディレクトリに追加してF5
-* gccはfiles/srcでmake build
-* VisualStudio2013がインストールされていない環境の場合はVC++2013ランタイムが必要です。 https://www.microsoft.com/ja-jp/download/details.aspx?id=40784
+* gccの場合はfiles/srcでmake build
+* VisualStudio2013の場合は、visual_studio_solution/luabinder.slnを開いてF5
+
 
 ## 使い方
 files/src/test.cppが全てです。
