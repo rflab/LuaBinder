@@ -1,3 +1,13 @@
+#
+Debug/
+Release/
+*.opensdf
+*.sdf
+*.suo
+*.log
+*.bak
+visual_studio_solution/test.wav
+
 # Windows image file caches
 Thumbs.db
 ehthumbs.db
