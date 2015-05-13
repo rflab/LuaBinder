@@ -1,6 +1,6 @@
 .PHONY:build rebuild clean
 
-rebuild: build clean ;
+rebuild: clean build ;
 
 build:
 	make a -C lua
