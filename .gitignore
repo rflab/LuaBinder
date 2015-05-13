@@ -6,7 +6,9 @@ Release/
 *.suo
 *.log
 *.bak
-visual_studio_solution/test.wav
+
+*.dat
+*.wav
 
 # Windows image file caches
 Thumbs.db
