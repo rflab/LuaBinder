@@ -24,44 +24,45 @@ namespace rf
 
 	// 引数インデックス用シーケンス
 	// integer_sequence<int, 1, 2, 3, 4>
-	template<typename Tp, Tp ... N>
+	template<typename T, T ... N>
 	struct intetger_sequence
 	{};
 
-	template<typename Vec, typename Tp>
+	template<typename T, typename S>
 	struct push_back;
 
-	template<template<typename T, T ... V> class VecC,
-		template<typename T, T V> class IntC,
+	template<template<typename T, T ... V> class Seq,
+		template<typename T, T V> class Val,
 		typename T, T ... V1, T V2>
-	struct push_back < VecC<T, V1...>, IntC<T, V2> >
+	struct push_back < Seq<T, V1...>, Val<T, V2> >
 	{
-		typedef VecC<T, V1..., V2> type;
+		typedef Seq<T, V1..., V2> type;
 	};
 
-	template<typename T, T First, T Last>
+	template<typename T, T V1, T V2>
 	struct make_integral_sequence;
 
-	template<typename T, T First, T Last>
+	template<typename T, T V1, T V2>
 	struct make_integral_sequence
 	{
 		typedef typename
-			push_back < typename make_integral_sequence<T, First, Last - 1>::type,
-			std::integral_constant<T, Last - 1 > > ::type type;
+			push_back < typename make_integral_sequence<T, V1, V2 - 1>::type,
+			std::integral_constant<T, V2 - 1 > > ::type type;
 	};
 
-	template<typename T, T A>
-	struct make_integral_sequence < T, A, A >
+	template<typename T, T V>
+	struct make_integral_sequence < T, V, V >
 	{
 		typedef intetger_sequence<T> type;
 	};
 
-	//template<typename T, T First, T Last>
+	//template<typename T, T V1, T V2>
 	//struct indexed_integral_sequence
 	//{
-	//	static_assert(First <= Last, "");
-	//	typedef typename make_integral_sequence<T, First, Last>::type type;
+	//	static_assert(V1 <= V2, "");
+	//	typedef typename make_integral_sequence<T, V1, V2>::type type;
 	//};
+
 
 	class LuaBinder
 	{
