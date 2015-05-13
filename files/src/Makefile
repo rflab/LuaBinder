@@ -4,7 +4,7 @@ rebuild: build clean ;
 
 build:
 	make a -C lua
-	gcc -lstdc++ -ldl -I./lua test.cpp lua/lua.a
+	g++ -std=c++11 -ldl -I./lua test.cpp lua/liblua.a
 
 clean:
 	-rm a.out

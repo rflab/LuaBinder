@@ -21,6 +21,7 @@ namespace rf
 	using std::stringstream;
 	using std::string;
 	using std::enable_if;
+	using std::make_shared;
 
 	// 引数インデックス用シーケンス
 	// integer_sequence<int, 1, 2, 3, 4>
@@ -62,7 +63,6 @@ namespace rf
 	//	static_assert(V1 <= V2, "");
 	//	typedef typename make_integral_sequence<T, V1, V2>::type type;
 	//};
-
 
 	class LuaBinder
 	{
@@ -205,7 +205,6 @@ namespace rf
 		}
 
 		// 型推論でLua->C++
-		// booleanがうまくいってない予感
 
 		template<typename T>
 		struct is_boolean
@@ -338,7 +337,7 @@ namespace rf
 		template<typename R, typename ... Args>
 		void def(string const& func_name, R(*f)(Args...))
 		{
-			typedef make_integral_sequence<size_t, 1, sizeof...(Args)+1>::type seq;
+			typedef typename make_integral_sequence<size_t, 1, sizeof...(Args)+1>::type seq;
 			lua_CFunction upvalue = invoker<decltype(f), seq>::apply;
 
 			// 登録する関数はinvokerから呼び出すので関数型にキャストしてクロージャに入れる
@@ -427,7 +426,7 @@ namespace rf
 				const class_chain<T>& def(string const& method_name, Ret(T::*f)(Args...),
 					typename enable_if<std::is_member_function_pointer<Ret(T::*)(Args...)>::value>::type* = 0) const
 			{
-				typedef make_integral_sequence<size_t, 2, sizeof...(Args)+2>::type seq;
+				typedef typename make_integral_sequence<size_t, 2, sizeof...(Args)+2>::type seq;
 				lua_CFunction upvalue = invoker<Ret(T::*)(Args...), seq>::apply;
 
 				luaL_getmetatable(L_, name_.c_str());
