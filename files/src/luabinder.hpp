@@ -90,7 +90,7 @@ namespace rf
 		~LuaBinder(){
 			close();
 		}
-
+		
 		void dump_stack()
 		{
 			int stack_size = lua_gettop(L_);
@@ -275,6 +275,12 @@ namespace rf
 		{
 			static int apply(lua_State* L)
 			{
+				if (lua_gettop(L) != sizeof...(Ixs))
+				{
+					return luaL_error(L, "argument number error　expected=%d, top=%d",
+						sizeof...(Ixs), lua_gettop(L)); // longjmp
+				}
+
 				auto f = reinterpret_cast<Ret(*)(Args...)>(lua_tocfunction(L, lua_upvalueindex(1)));
 				Ret r = f(get_stack<Args>(L, Ixs)...);
 				LuaBinder::push_stack(L, r);
@@ -287,6 +293,12 @@ namespace rf
 		{
 			static int apply(lua_State* L)
 			{
+				if (lua_gettop(L) != sizeof...(Ixs))
+				{
+					return luaL_error(L, "argument number error　expected=%d, top=%d",
+						sizeof...(Ixs), lua_gettop(L)); // longjmp
+				}
+
 				auto f = reinterpret_cast<void(*)(Args...)>(lua_tocfunction(L, lua_upvalueindex(1)));
 				f(get_stack<Args>(L, Ixs)...);
 				return 0;
@@ -299,12 +311,17 @@ namespace rf
 		{
 			static int apply(lua_State* L)
 			{
+				if (lua_gettop(L) != sizeof...(Ixs)+1)
+				{
+					return luaL_error(L, "argument number error　expected=%d, top=%d",
+						sizeof...(Ixs)+1, lua_gettop(L)); // longjmp
+				}
+
 				auto self = static_cast<T*>(lua_touserdata(L, 1));
 				if (self == nullptr){
 					cout << "no self specified" << endl;
 				}
 
-				// これで通ったけどなんでかなー
 				typedef typename std::remove_reference<Ret(T::*)(Args...)>::type mf_type;
 				void* buf = lua_touserdata(L, lua_upvalueindex(1));
 				auto a = static_cast<std::array<mf_type, 1>*> (buf);
@@ -322,12 +339,17 @@ namespace rf
 		{
 			static int apply(lua_State* L)
 			{
+				if (lua_gettop(L) != sizeof...(Ixs)+1)
+				{
+					return luaL_error(L, "argument number error　expected=%d, top=%d",
+						sizeof...(Ixs)+1, lua_gettop(L)); // longjmp
+				}
+
 				auto self = static_cast<T*>(lua_touserdata(L, 1));
 				if (self == nullptr){
 					cout << "no self specified" << endl;
 				}
 		
-				// これで通ったけどなんでかなー
 				typedef typename std::remove_reference<void(T::*)(Args...)>::type mf_type;
 				void* buf = lua_touserdata(L, lua_upvalueindex(1));
 				auto a = static_cast<std::array<mf_type, 1>*> (buf);
