@@ -257,6 +257,14 @@ namespace rf
 			return lua_tostring(L, index);
 		}
 
+		template<typename T>
+		static T get_stack(lua_State* L, int index, typename enable_if<!is_basic_type<T>::value>::type* = 0)
+		{
+			typedef typename std::remove_reference<T>::type type;
+			auto obj = static_cast<type*>(lua_touserdata(L, index));
+			return *obj;
+		}
+
 		// 引数型情報とLuaから呼び出す関数をもつスタブのようなオブジェクト
 		// 関数、void関数、メンバ関数、voidメンバ関数を特殊化する
 		template<typename Func, typename Seq, typename IsMember = void>
@@ -335,7 +343,7 @@ namespace rf
 
 		// 関数を登録
 		template<typename R, typename ... Args>
-		void def(string const& func_name, R(*f)(Args...))
+		void def(const string& func_name, R(*f)(Args...))
 		{
 			typedef typename make_integral_sequence<size_t, 1, sizeof...(Args)+1>::type seq;
 			lua_CFunction upvalue = invoker<decltype(f), seq>::apply;
@@ -380,7 +388,7 @@ namespace rf
 			lua_State* L_;
 
 		public:
-			class_chain(lua_State* L, string const& name)
+			class_chain(lua_State* L, const string& name)
 				:name_(name), L_(L)
 			{
 				// local table = {}
@@ -423,7 +431,7 @@ namespace rf
 			}
 
 			template<typename Ret, typename... Args>
-				const class_chain<T>& def(string const& method_name, Ret(T::*f)(Args...),
+			const class_chain<T>& def(const string & method_name, Ret(T::*f)(Args...),
 					typename enable_if<std::is_member_function_pointer<Ret(T::*)(Args...)>::value>::type* = 0) const
 			{
 				typedef typename make_integral_sequence<size_t, 2, sizeof...(Args)+2>::type seq;
@@ -457,7 +465,7 @@ namespace rf
 		};
 
 		template<class T>
-		std::shared_ptr<class_chain<T> > def_class(string const& name)
+		std::shared_ptr<class_chain<T> > def_class(const string& name)
 		{
 			return make_shared<class_chain<T> >(L_, name);
 		}
