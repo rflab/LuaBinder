@@ -23,53 +23,15 @@ namespace rf
 	using std::enable_if;
 	using std::make_shared;
 
-	// 引数インデックス用シーケンス
-	// integer_sequence<int, 1, 2, 3, 4>
-	template<typename T, T ... N>
-	struct intetger_sequence
-	{};
-
-	template<typename T, typename S>
-	struct push_back;
-
-	template<template<typename T, T ... V> class Seq,
-		template<typename T, T V> class Val,
-		typename T, T ... V1, T V2>
-	struct push_back < Seq<T, V1...>, Val<T, V2> >
-	{
-		typedef Seq<T, V1..., V2> type;
-	};
-
-	template<typename T, T V1, T V2>
-	struct make_integral_sequence;
-
-	template<typename T, T V1, T V2>
-	struct make_integral_sequence
-	{
-		typedef typename
-			push_back < typename make_integral_sequence<T, V1, V2 - 1>::type,
-			std::integral_constant<T, V2 - 1 > > ::type type;
-	};
-
-	template<typename T, T V>
-	struct make_integral_sequence < T, V, V >
-	{
-		typedef intetger_sequence<T> type;
-	};
-
-	//template<typename T, T V1, T V2>
-	//struct indexed_integral_sequence
-	//{
-	//	static_assert(V1 <= V2, "");
-	//	typedef typename make_integral_sequence<T, V1, V2>::type type;
-	//};
-
-	class LuaBinder
+	class LuaBinder final
 	{
 	private:
 		lua_State* L_;
 
-	public:
+
+	//----------------------------------------
+	// 内部関数
+	private:
 		bool open()
 		{
 			L_ = luaL_newstate(); // コンテキスト作成 
@@ -81,14 +43,6 @@ namespace rf
 		{
 			lua_close(L_);
 			return true;
-		}
-		
-		LuaBinder(){
-			open();
-		}
-
-		~LuaBinder(){
-			close();
 		}
 		
 		void dump_stack()
@@ -151,38 +105,9 @@ namespace rf
 
 			return true;
 		}
+		
+		// スタック操作 オーバーロードでC++->Lua
 
-		bool dofile(const string& filename)
-		{
-			int top = lua_gettop(L_);
-
-			int lua_ret = luaL_dofile(L_, filename.c_str());
-
-			bool result = luaresult(lua_ret);
-
-			lua_settop(L_, top);
-
-			return result;
-		}
-
-		bool dostring(const string& str)
-		{
-			int top = lua_gettop(L_);
-			
-			int lua_ret = luaL_dostring(L_, str.c_str());
-
-			bool result = luaresult(lua_ret);
-
-			lua_settop(L_, top);
-
-			return result;
-		}
-
-		//
-		// 関数バインダー
-		//
-
-		// オーバーロードでC++->Lua
 		template<typename T>
 		static void push_stack(lua_State* L, T a)
 		{
@@ -204,7 +129,7 @@ namespace rf
 			lua_pushstring(L, a.c_str());
 		}
 
-		// 型推論でLua->C++
+		// スタック操作 型推論でLua->C++
 
 		template<typename T>
 		struct is_boolean
@@ -265,10 +190,46 @@ namespace rf
 			return *obj;
 		}
 
+		// 引数インデックス用シーケンス
+
+		template<typename T, T ... N>
+		struct intetger_sequence
+		{};
+
+		template<typename T, typename S>
+		struct push_back;
+
+		template<template<typename T, T ... V> class Seq,
+			template<typename T, T V> class Val,
+			typename T, T ... V1, T V2>
+		struct push_back < Seq<T, V1...>, Val<T, V2> >
+		{
+			typedef Seq<T, V1..., V2> type;
+		};
+
+		template<typename T, T V1, T V2>
+		struct make_integral_sequence;
+
+		template<typename T, T V1, T V2>
+		struct make_integral_sequence
+		{
+			typedef typename
+				push_back < typename make_integral_sequence<T, V1, V2 - 1>::type,
+				std::integral_constant<T, V2 - 1 > > ::type type;
+		};
+
+		template<typename T, T V>
+		struct make_integral_sequence < T, V, V >
+		{
+			typedef intetger_sequence<T> type;
+		};
+		
 		// 引数型情報とLuaから呼び出す関数をもつスタブのようなオブジェクト
 		// 関数、void関数、メンバ関数、voidメンバ関数を特殊化する
 		template<typename Func, typename Seq, typename IsMember = void>
 		struct invoker;
+
+		// invokerの特殊化
 
 		template<typename Ret, typename... Args, size_t ... Ixs>
 		struct invoker < Ret(*)(Args...), intetger_sequence<size_t, Ixs...> >
@@ -360,32 +321,13 @@ namespace rf
 			}
 		};
 
-		//----------------------------------------
-		// 関数
-
-		// 関数を登録
-		template<typename R, typename ... Args>
-		void def(const string& func_name, R(*f)(Args...))
-		{
-			typedef typename make_integral_sequence<size_t, 1, sizeof...(Args)+1>::type seq;
-			lua_CFunction upvalue = invoker<decltype(f), seq>::apply;
-
-			// 登録する関数はinvokerから呼び出すので関数型にキャストしてクロージャに入れる
-			lua_pushcfunction(L_, reinterpret_cast<lua_CFunction>(f));
-			lua_pushcclosure(L_, upvalue, 1);
-			lua_setglobal(L_, func_name.c_str());
-		}
-
-		//----------------------------------------
-		// クラス
-
 		// 引数なしコンストラクタ
 		template<class T>
 		static int new_instance(lua_State* L)
 		{
 			void *p = lua_newuserdata(L, sizeof(T));
 			int userdata = lua_gettop(L);
-			void *instance = new(p)T;
+			void* instance = new(p)T;
 
 			lua_pushvalue(L, lua_upvalueindex(1)); // クラスを取り出す
 			lua_setmetatable(L, userdata); // メタテーブルに追加する
@@ -402,6 +344,87 @@ namespace rf
 			return 0;
 		}
 
+	//----------------------------------------
+	// 公開関数
+	public:
+
+		LuaBinder(){
+			open();
+		}
+
+		~LuaBinder(){
+			close();
+		}
+
+		// Luaファイルを実行
+		bool dofile(const string& filename)
+		{
+			int top = lua_gettop(L_);
+
+			int lua_ret = luaL_dofile(L_, filename.c_str());
+
+			bool result = luaresult(lua_ret);
+
+			lua_settop(L_, top);
+
+			return result;
+		}
+
+		// Luaスクリプト文字列を実行
+		bool dostring(const string& str)
+		{
+			int top = lua_gettop(L_);
+
+			int lua_ret = luaL_dostring(L_, str.c_str());
+
+			bool result = luaresult(lua_ret);
+
+			lua_settop(L_, top);
+
+			return result;
+		}
+
+		// 関数バインド
+		//
+		// ＜使用例＞
+		//	LuaBinder lua;
+		//	lua.def("func1", func);
+		//	lua.def("func2", func2);
+		//	lua.def("func3", (int(*)(int))    overload_func);
+		//	lua.def("func4", (int(*)(string)) overload_func);
+		//
+		template<typename R, typename ... Args>
+		void def(const string& func_name, R(*f)(Args...))
+		{
+			typedef typename make_integral_sequence<size_t, 1, sizeof...(Args)+1>::type seq;
+			lua_CFunction upvalue = invoker<decltype(f), seq>::apply;
+
+			// 登録する関数はinvokerから呼び出すので関数型にキャストしてクロージャに入れる
+			lua_pushcfunction(L_, reinterpret_cast<lua_CFunction>(f));
+			lua_pushcclosure(L_, upvalue, 1);
+			lua_setglobal(L_, func_name.c_str());
+		}
+
+		// クラスバインド
+		//
+		// ＜使用例＞
+		// LuaBinder lua;
+		// lua.def_class<Test>("Test")->
+		//	def("func1", &Test::func).
+		//	def("func2", &Test::func2).
+		//	def("func3", (int(Test::*)(int))    &Test::overload_func).
+		//	def("func4", (int(Test::*)(string)) &Test::overload_func);
+		//
+
+		template<class T> class class_chain;
+
+		template<class T>
+		std::shared_ptr<class_chain<T> > def_class(const string& name)
+		{
+			return make_shared<class_chain<T> >(L_, name);
+		}
+
+		// メンバ関数登録用オブジェクト
 		template<class T>
 		class class_chain
 		{
@@ -485,12 +508,6 @@ namespace rf
 				return *this;
 			}
 		};
-
-		template<class T>
-		std::shared_ptr<class_chain<T> > def_class(const string& name)
-		{
-			return make_shared<class_chain<T> >(L_, name);
-		}
 	};
 }
 
