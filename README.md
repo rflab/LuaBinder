@@ -28,3 +28,4 @@ files/src/test.cppが全てです。
     	def("func3", (int(Test::*)(int))    &Test::overload_func).
     	def("func4", (int(Test::*)(string)) &Test::overload_func);
 
+    lua.dofile("test.lua");
