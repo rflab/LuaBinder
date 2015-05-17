@@ -5,13 +5,22 @@
 
 #include <iostream>
 #include <string>
-#include <vector>
+#include <tuple>
 #include <array>
 #include <memory>
 #include <sstream>
+#include <stdexcept>
 #include <type_traits>
 
 #include "lua.hpp"
+
+// コンパイラ依存？
+#define nullptr NULL
+#define final
+#define throw(x)
+
+// これをC++関数内でthrowするとLua関数の戻り値をfalseになる
+#define LUA_RUNTIME_ERROR std::runtime_error(string("c++ runtime exception. L") + to_string(__LINE__) + " " + __FUNCTION__)
 
 namespace rf
 {
@@ -22,12 +31,12 @@ namespace rf
 	using std::string;
 	using std::enable_if;
 	using std::make_shared;
+	using std::tuple;
 
 	class LuaBinder final
 	{
 	private:
 		lua_State* L_;
-
 
 	//----------------------------------------
 	// 内部関数
@@ -84,16 +93,16 @@ namespace rf
 			stringstream ss;
 			ss.str("");
 			ss.clear();
-
-			switch (lua_ret)
-			{
-				case LUA_OK: break;
-				case LUA_ERRRUN:    ss << "ERROR LUA RUNTIME \n"; break;
-				case LUA_ERRSYNTAX: ss << "ERROR LUA SYNTAX \n";  break;
-				case LUA_ERRMEM:    ss << "ERROR LUA MEM \n";     break;
-				case LUA_ERRFILE:   ss << "ERROR LUA FILE \n";    break;
-				default: ss << "ERROR LUA\n"; break;
-			}
+			
+			// switch (lua_ret)
+			// {
+			// 	case LUA_OK: break;
+			// 	case LUA_ERRRUN:    ss << "ERROR LUA RUNTIME "; break;
+			// 	case LUA_ERRSYNTAX: ss << "ERROR LUA SYNTAX ";  break;
+			// 	case LUA_ERRMEM:    ss << "ERROR LUA MEM ";     break;
+			// 	case LUA_ERRFILE:   ss << "ERROR LUA FILE ";    break;
+			// 	default: ss << "ERROR LUA "; break;
+			// }
 
 			// エラーメッセージ表示
 			if (lua_ret != LUA_OK)
@@ -142,26 +151,26 @@ namespace rf
 		struct is_number
 		{
 			static const bool value =
-				!is_boolean<T>::value &&
-				std::is_integral<T>::value ||
-				std::is_floating_point<T>::value;
+				(  (!is_boolean<T>::value)
+				&& (  (std::is_integral<T>::value)
+				   || (std::is_floating_point<T>::value)));
 		};
 
 		template<typename T>
 		struct is_string
 		{
 			static const bool value =
-				std::is_same<T, string>::value ||
-				std::is_same<T, char const*>::value;
+				(  (std::is_same<T, string>::value)
+				|| (std::is_same<T, char const*>::value));
 		};
 
 		template<typename T>
 		struct is_basic_type
 		{
 			static const bool value =
-				is_boolean<T>::value ||
-				is_number<T>::value ||
-				is_string<T>::value;
+				(  (is_boolean<T>::value) 
+				|| (is_number<T>::value)
+				|| (is_string<T>::value));
 		};
 
 		template<typename T>
@@ -243,8 +252,23 @@ namespace rf
 				}
 
 				auto f = reinterpret_cast<Ret(*)(Args...)>(lua_tocfunction(L, lua_upvalueindex(1)));
-				Ret r = f(get_stack<Args>(L, Ixs)...);
-				LuaBinder::push_stack(L, r);
+				
+				try
+				{
+					Ret r = f(get_stack<Args>(L, Ixs)...);
+					LuaBinder::push_stack(L, r);
+				}
+				catch (const std::exception) // &e)
+				{
+					LuaBinder::push_stack(L, false);
+					return 0;
+					//return luaL_error(L, e.what()); // longjmp
+				}
+				catch (...)
+				{
+					return luaL_error(L, "unknown exception");
+				}
+
 				return 1;
 			}
 		};
@@ -261,12 +285,47 @@ namespace rf
 				}
 
 				auto f = reinterpret_cast<void(*)(Args...)>(lua_tocfunction(L, lua_upvalueindex(1)));
-				f(get_stack<Args>(L, Ixs)...);
+				
+				try
+				{
+					f(get_stack<Args>(L, Ixs)...);
+				}
+				catch (const std::exception &e)
+				{
+					return luaL_error(L, e.what()); // longjmp
+				}
+				catch (...)
+				{
+					return luaL_error(L, "unknown exception");
+				}
+
 				return 0;
 			}
 		};
 
-		template<class T, typename Ret, typename ... Args, size_t ... Ixs>
+		//// 面倒なのでやめ
+		//template<template<class, class> class Tuple, typename Ret, typename... Args, size_t ... Ixs>
+		//struct invoker < Tuple<Ret, bool>(*)(Args...), intetger_sequence<size_t, Ixs...> >
+		//{
+		//	static int apply(lua_State* L)
+		//	{
+		//		if (lua_gettop(L) != sizeof...(Ixs))
+		//		{
+		//			return luaL_error(L, "argument number error　expected=%d, top=%d",
+		//				sizeof...(Ixs), lua_gettop(L)); // longjmp
+		//		}
+		//
+		//		auto f = reinterpret_cast<void(*)(Args...)>(lua_tocfunction(L, lua_upvalueindex(1)));
+		//		Ret ret_value;
+		//		bool result;
+		//		std::tie(ret_value, result) = f(get_stack<Args>(L, Ixs)...);
+		//		LuaBinder::push_stack<>(L, ret_value);
+		//		LuaBinder::push_stack<>(L, result);
+		//		return 2;
+		//	}
+		//};
+
+		template<typename Ret, class T, typename ... Args, size_t ... Ixs>
 		struct invoker< Ret(T::*)(Args...), intetger_sequence<size_t, Ixs...>,
 			typename enable_if<std::is_member_function_pointer<Ret(T::*)(Args...)>::value && !std::is_void<Ret>::value>::type>
 		{
@@ -288,15 +347,29 @@ namespace rf
 				auto a = static_cast<std::array<mf_type, 1>*> (buf);
 				mf_type fp = (*a)[0];
 
-				Ret r = (self->*fp)(get_stack<Args>(L, Ixs)...);
-				push_stack(L, r);
+				try
+				{
+					Ret r = (self->*fp)(get_stack<Args>(L, Ixs)...);
+					push_stack(L, r);
+				}
+				catch (const std::exception) // &e)
+				{
+					LuaBinder::push_stack(L, false);
+					return 0;
+					// luaL_error(L, e.what()); // longjmp
+				}
+				catch (...)
+				{
+					return luaL_error(L, "unknown exception");
+				}
+
 				return 1;
 			}
 		};
 		
-		template<class T, typename Ret, typename ... Args, size_t ... Ixs>
+		template<typename Ret, class T, typename ... Args, size_t ... Ixs>
 		struct invoker< Ret(T::*)(Args...), intetger_sequence<size_t, Ixs...>,
-			typename enable_if<std::is_member_function_pointer<Ret(T::*)(Args...)>::value && std::is_void<Ret>::value>::type>
+			typename enable_if<std::is_member_function_pointer<void(T::*)(Args...)>::value && std::is_void<Ret>::value>::type>
 		{
 			static int apply(lua_State* L)
 			{
@@ -316,10 +389,56 @@ namespace rf
 				auto a = static_cast<std::array<mf_type, 1>*> (buf);
 				mf_type fp = (*a)[0];
 		
-				(self->*fp)(get_stack<Args>(L, Ixs)...);
+				try
+				{
+					(self->*fp)(get_stack<Args>(L, Ixs)...);
+				}
+				catch (const std::exception &e)
+				{
+					return luaL_error(L, e.what()); // longjmp
+				}
+				catch (...)
+				{
+					return luaL_error(L, "unknown exception");
+				}
+
 				return 0;
 			}
 		};
+
+
+
+		//// 面倒なのでやめ
+		//template<class T, typename Ret, typename ... Args, size_t ... Ixs>
+		//struct invoker< tuple<Ret, bool>(T::*)(Args...), intetger_sequence<size_t, Ixs...>,
+		//	typename enable_if<std::is_member_function_pointer<Ret(T::*)(Args...)>::value>::type>
+		//{
+		//	static int apply(lua_State* L)
+		//	{
+		//		if (lua_gettop(L) != sizeof...(Ixs)+1)
+		//		{
+		//			return luaL_error(L, "argument number error　expected=%d, top=%d",
+		//				sizeof...(Ixs)+1, lua_gettop(L)); // longjmp
+		//		}
+		//
+		//		auto self = static_cast<T*>(lua_touserdata(L, 1));
+		//		if (self == nullptr){
+		//			cout << "no self specified" << endl;
+		//		}
+		//
+		//		typedef typename std::remove_reference<void(T::*)(Args...)>::type mf_type;
+		//		void* buf = lua_touserdata(L, lua_upvalueindex(1));
+		//		auto a = static_cast<std::array<mf_type, 1>*> (buf);
+		//		mf_type fp = (*a)[0];
+		//
+		//		Ret ret_value;
+		//		bool result;
+		//		std::tie(ret_value, result) = (self->*fp)(get_stack<Args>(L, Ixs)...);
+		//		LuaBinder::push_stack<>(L, ret_value);
+		//		LuaBinder::push_stack<>(L, result);
+		//		return 2;
+		//	}
+		//};
 
 		// 引数なしコンストラクタ
 		template<class T>
@@ -327,8 +446,10 @@ namespace rf
 		{
 			void *p = lua_newuserdata(L, sizeof(T));
 			int userdata = lua_gettop(L);
-			void* instance = new(p)T;
-
+			
+			// void* instance = new(p)T;
+			new(p)T;
+			
 			lua_pushvalue(L, lua_upvalueindex(1)); // クラスを取り出す
 			lua_setmetatable(L, userdata); // メタテーブルに追加する
 
@@ -477,7 +598,7 @@ namespace rf
 
 			template<typename Ret, typename... Args>
 			const class_chain<T>& def(const string & method_name, Ret(T::*f)(Args...),
-					typename enable_if<std::is_member_function_pointer<Ret(T::*)(Args...)>::value>::type* = 0) const
+				typename enable_if<std::is_member_function_pointer<Ret(T::*)(Args...)>::value>::type* = 0) const
 			{
 				typedef typename make_integral_sequence<size_t, 2, sizeof...(Args)+2>::type seq;
 				lua_CFunction upvalue = invoker<Ret(T::*)(Args...), seq>::apply;
