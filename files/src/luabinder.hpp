@@ -20,7 +20,7 @@
 #define throw(x)
 
 // これをC++関数内でthrowするとLua関数の戻り値をfalseになる
-#define LUA_RUNTIME_ERROR std::runtime_error(string("c++ runtime exception. L") + to_string(__LINE__) + " " + __FUNCTION__)
+#define LUA_RUNTIME_ERROR ::std::runtime_error(::std::string("c++ runtime exception. L") + ::std::to_string(__LINE__) + " " + __FUNCTION__)
 
 namespace rf
 {
@@ -38,8 +38,6 @@ namespace rf
 	private:
 		lua_State* L_;
 
-	//----------------------------------------
-	// 内部関数
 	private:
 		bool open()
 		{
@@ -185,11 +183,27 @@ namespace rf
 			return lua_toboolean(L, index) == 0 ? false : true;
 		}
 
+
 		template<typename T>
-		static const char* get_stack(lua_State* L, int index, typename enable_if<is_string<T>::value>::type* = 0)
+		static const char *get_stack(lua_State* L, int index, typename enable_if<is_string<T>::value>::type* = 0)
 		{
-			return lua_tostring(L, index);
+			const char* str = lua_tostring(L, index);
+			if (str == nullptr)
+				throw LUA_RUNTIME_ERROR;
+			return str;
 		}
+
+		//template<typename T>
+		//static const char *get_stack(lua_State* L, int index, typename enable_if<std::is_same<T, char const*>::value>::type* = 0)
+		//{
+		//	return lua_tostring(L, index);
+		//}
+		//
+		//template<typename T>
+		//static const string get_stack(lua_State* L, int index, typename enable_if<std::is_same<T, string>::value>::type* = 0)
+		//{
+		//	return lua_tostring(L, index);
+		//}
 
 		template<typename T>
 		static T get_stack(lua_State* L, int index, typename enable_if<!is_basic_type<T>::value>::type* = 0)
@@ -406,8 +420,6 @@ namespace rf
 			}
 		};
 
-
-
 		//// 面倒なのでやめ
 		//template<class T, typename Ret, typename ... Args, size_t ... Ixs>
 		//struct invoker< tuple<Ret, bool>(T::*)(Args...), intetger_sequence<size_t, Ixs...>,
@@ -465,8 +477,6 @@ namespace rf
 			return 0;
 		}
 
-	//----------------------------------------
-	// 公開関数
 	public:
 
 		LuaBinder(){
@@ -492,6 +502,7 @@ namespace rf
 		}
 
 		// Luaスクリプト文字列を実行
+
 		bool dostring(const string& str)
 		{
 			int top = lua_gettop(L_);
@@ -513,7 +524,7 @@ namespace rf
 		//	lua.def("func2", func2);
 		//	lua.def("func3", (int(*)(int))    overload_func);
 		//	lua.def("func4", (int(*)(string)) overload_func);
-		//
+		
 		template<typename R, typename ... Args>
 		void def(const string& func_name, R(*f)(Args...))
 		{
@@ -535,7 +546,6 @@ namespace rf
 		//	def("func2", &Test::func2).
 		//	def("func3", (int(Test::*)(int))    &Test::overload_func).
 		//	def("func4", (int(Test::*)(string)) &Test::overload_func);
-		//
 
 		template<class T> class class_chain;
 
@@ -546,6 +556,7 @@ namespace rf
 		}
 
 		// メンバ関数登録用オブジェクト
+		// 通常はdef_classを使えばいいはず
 		template<class T>
 		class class_chain
 		{
@@ -611,11 +622,10 @@ namespace rf
 
 				lua_pushstring(L_, method_name.c_str());
 
-				// メンバ関数は実態としてしかコピー出来ない
-				// （多分メンバ関数ポインタのサイズはsizeof(int)ではないから)
+				// メンバ関数ポインタのサイズはsizeof(int)でなく特別
+				// メンバ関数は実体としてしかコピー出来ない
 				// つまり↓は通らない
-				// auto fpp = reinterpret_cast<void*>(f); 
-				// なので配列として渡す
+				// (void*)f; 
 				typedef typename std::remove_reference<Ret(T::*)(Args...)>::type mf_type;
 				void* buf = lua_newuserdata(L_, sizeof(std::array<mf_type, 1>));
 				auto a = static_cast<std::array<mf_type, 1>*>(buf);
