@@ -46,7 +46,8 @@ int main(int argc, char** argv)
 		"func1()                     \n"   // 関数テスト
 		"print(func2(100))           \n"
 		"print(func3(200))           \n"
-		"print(func3(\"hoge\"))      \n"
+		"print(func3(100))           \n"
+		"print(func4(\"hoge\"))      \n"
 		"c = Test.new()              \n"   // クラスインスタンス化
 		"c:func1()                   \n"   // メンバ関数テスト
 		"print(c:func2(100))         \n"
