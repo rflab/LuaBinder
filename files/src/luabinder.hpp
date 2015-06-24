@@ -2,7 +2,6 @@
 #define _RF_LUA_BINER_
 
 #include <stdio.h>
-
 #include <iostream>
 #include <string>
 #include <tuple>
@@ -294,9 +293,15 @@ namespace rf
 		}
 
 		template<typename...Args, size_t...Ixs>
-		static tuple<Args...> get_tuple(lua_State* L, intetgral_sequence<size_t, Ixs...>)
+		static tuple<Args...> get_tuple(lua_State* L, intetgral_sequence<size_t, Ixs...>, typename enable_if<sizeof...(Args) != 0>::type* = 0)
 		{
 			return tuple<Args...>(get_stack<Args>(L, Ixs)...);
+		}
+
+		template<typename...Args>
+		static tuple<> get_tuple(lua_State*, intetgral_sequence<size_t>)
+		{
+			return tuple<>();
 		}
 
 		
@@ -319,30 +324,8 @@ namespace rf
 
 				auto f = reinterpret_cast<Ret(*)(Args...)>(lua_tocfunction(L, lua_upvalueindex(1)));
 				
-				try
-				{
-					Ret r = f(get_stack<Args>(L, Ixs)...);
-					LuaBinder::push_stack(L, r);
-				}
-				catch (const string s)
-				{
-					LuaBinder::push_stack(L, s);
-					return 1;
-				}
-				catch (const std::exception &e)
-				{
-					push_stack(L, e.what());
-					traceback(L);
-					lua_pop(L, 1);
-					return luaL_error(L, e.what()); // longjmp
-				}
-				catch (...)
-				{
-					push_stack(L, "unknown error.");
-					traceback(L);
-					lua_pop(L, 1);
-					return luaL_error(L, "unknown exception");
-				}
+				Ret r = f(get_stack<Args>(L, Ixs)...);
+				LuaBinder::push_stack(L, r);
 
 				return 1;
 			}
@@ -361,30 +344,8 @@ namespace rf
 				}
 
 				auto f = reinterpret_cast<void(*)(Args...)>(lua_tocfunction(L, lua_upvalueindex(1)));
-				
-				try
-				{
-					f(get_stack<Args>(L, Ixs)...);
-				}
-				catch (const string s)
-				{
-					LuaBinder::push_stack(L, s);
-					return 1;
-				}
-				catch (const std::exception &e)
-				{
-					push_stack(L, e.what());
-					traceback(L);
-					lua_pop(L, 1);
-					return luaL_error(L, e.what()); // longjmp
-				}
-				catch (...)
-				{
-					push_stack(L, "unknown error.");
-					traceback(L);
-					lua_pop(L, 1);
-					return luaL_error(L, "unknown exception");
-				}
+
+				f(get_stack<Args>(L, Ixs)...);
 
 				return 0;
 			}
@@ -435,31 +396,9 @@ namespace rf
 				auto a = static_cast<std::array<mf_type, 1>*> (buf);
 				mf_type fp = (*a)[0];
 
-				try
-				{
-					Ret r = (self->*fp)(get_stack<Args>(L, Ixs)...);
-					push_stack(L, r);
-				}
-				catch (const string s)
-				{
-					LuaBinder::push_stack(L, s);
-					return 1;
-				}
-				catch (const std::exception &e)
-				{
-					push_stack(L, e.what());
-					traceback(L);
-					lua_pop(L, 1);
-					return luaL_error(L, e.what()); // longjmp
-				}
-				catch (...)
-				{
-					push_stack(L, "unknown error.");
-					traceback(L);
-					lua_pop(L, 1);
-					return luaL_error(L, "unknown exception");
-				}
-			
+				Ret r = (self->*fp)(get_stack<Args>(L, Ixs)...);
+				push_stack(L, r);
+
 				return 1;
 			}
 		};
@@ -486,30 +425,8 @@ namespace rf
 				void* buf = lua_touserdata(L, lua_upvalueindex(1));
 				auto a = static_cast<std::array<mf_type, 1>*> (buf);
 				mf_type fp = (*a)[0];
-		
-				try
-				{
-					(self->*fp)(get_stack<Args>(L, Ixs)...);
-				}
-				catch (const string s)
-				{
-					LuaBinder::push_stack(L, s);
-					return 1;
-				}
-				catch (const std::exception &e)
-				{
-					push_stack(L, e.what());
-					traceback(L);
-					lua_pop(L, 1);
-					return luaL_error(L, e.what()); // longjmp
-				}
-				catch (...)
-				{
-					push_stack(L, "unknown error.");
-					traceback(L);
-					lua_pop(L, 1);
-					return luaL_error(L, "unknown exception");
-				}
+
+				(self->*fp)(get_stack<Args>(L, Ixs)...);
 
 				return 0;
 			}
@@ -573,10 +490,16 @@ namespace rf
 			return 0;
 		}
 
-		template<typename T, typename ... Args, size_t ... Ixs>
+		template<class T, typename ... Args, size_t ... Ixs>
 		static void* call_constructor(void* p, intetgral_sequence<size_t, Ixs...>, tuple<Args...>& args)
 		{
 			return new(p)T(std::get<Ixs>(args)...);
+		}
+
+		template<class T>
+		static void* call_constructor(void* p, intetgral_sequence<size_t>, tuple<>& )
+		{
+			return new(p) T;
 		}
 
 	public:
@@ -597,9 +520,31 @@ namespace rf
 			lua_insert(L_, top);
 			int func = lua_gettop(L_);
 
-			if ((!luaresult(luaL_loadfile(L_, filename.c_str())))
-			|| (!luaresult(lua_pcall(L_, 0, LUA_MULTRET, func))))
-				return false;
+			try
+			{
+				if ((!luaresult(luaL_loadfile(L_, filename.c_str())))
+				|| (!luaresult(lua_pcall(L_, 0, LUA_MULTRET, func))))
+					return false;
+			}
+			catch (const string s)
+			{
+				LuaBinder::push_stack(L_, s);
+				return 1;
+			}
+			catch (const std::exception &e)
+			{
+				push_stack(L_, e.what());
+				traceback(L_);
+				lua_pop(L_, 1);
+				return luaL_error(L_, e.what()) != 0; // longjmp
+			}
+			catch (...)
+			{
+				push_stack(L_, "unknown error.");
+				traceback(L_);
+				lua_pop(L_, 1);
+				return luaL_error(L_, "unknown exception") != 0;
+			}
 
 			lua_remove(L_, func);
 			lua_settop(L_, top);
@@ -615,10 +560,32 @@ namespace rf
 			lua_insert(L_, top);
 			int func = lua_gettop(L_);
 
-			if ((!luaresult(luaL_loadstring(L_, str.c_str())))
-			|| (!luaresult(lua_pcall(L_, 0, LUA_MULTRET, func))))
-				return false;
-
+			try
+			{
+				if ((!luaresult(luaL_loadstring(L_, str.c_str())))
+				|| (!luaresult(lua_pcall(L_, 0, LUA_MULTRET, func))))
+					return false;
+			}
+			catch (const string s)
+			{
+				LuaBinder::push_stack(L_, s);
+				return 1;
+			}
+			catch (const std::exception &e)
+			{
+				push_stack(L_, e.what());
+				traceback(L_);
+				lua_pop(L_, 1);
+				return luaL_error(L_, e.what()) != 0; // longjmp
+			}
+			catch (...)
+			{
+				push_stack(L_, "unknown error.");
+				traceback(L_);
+				lua_pop(L_, 1);
+				return luaL_error(L_, "unknown exception") != 0;
+			}
+			
 			lua_remove(L_, func);
 			lua_settop(L_, top);
 
@@ -661,6 +628,32 @@ namespace rf
 		{
 			return make_unique<class_chain<T> >(L_, name);
 		}
+
+		template<class T>
+		unique_ptr<class_chain<T> > def_subclass(const string& sub_name, const string& super_name)
+		{
+			auto p = make_unique<class_chain<T> >(L_, sub_name);
+
+			// _G[sub_name]
+			lua_getglobal(L_, sub_name.c_str());
+			int sub_class = lua_gettop(L_);
+
+			// metatable = {}
+			lua_newtable(L_);
+			int metatable = lua_gettop(L_);
+		
+			// metatable.__index = class_def
+			lua_pushliteral(L_, "__index");
+			lua_getglobal(L_, super_name.c_str());
+			lua_settable(L_, metatable);
+
+			// setmetatable(sub_class, metatable)
+			lua_setmetatable(L_, sub_class);
+		
+			lua_pop(L_, 1);
+
+			return p;
+		}
 		
 		// コンストラクタ登録用オブジェクト
 		// 通常はdefに渡す
@@ -681,47 +674,34 @@ namespace rf
 				void* p = lua_newuserdata(L, sizeof(T));
 				int userdata = lua_gettop(L);
 
-				try
-				{
-					// 1がself、2～top-1が引数、topはnewuserdataで今積んだばっかり。
-					typedef typename make_integral_sequence<size_t, 2, sizeof...(Args)+2>::type lua_index_seq;
-					auto args = get_tuple<Args...>(L, lua_index_seq());
+				// 1がself、2～top-1が引数、topはnewuserdataで今積んだばっかり。
+				typedef typename make_integral_sequence<size_t, 2, sizeof...(Args)+2>::type lua_index_seq;
+				auto args = get_tuple<Args...>(L, lua_index_seq());
 
-					typedef typename make_integral_sequence<size_t, 0, sizeof...(Args)>::type cpp_index_seq;
-					call_constructor<T>(p, cpp_index_seq(), args);
-				}
-				catch (const string s)
-				{
-					LuaBinder::push_stack(L, s);
-					return 1;
-				}
-				catch (const std::exception &e)
-				{
-					push_stack(L, e.what());
-					traceback(L);
-					lua_pop(L, 1);
-					return luaL_error(L, e.what()); // longjmp
-				}
-				catch (...)
-				{
-					push_stack(L, "unknown error.");
-					traceback(L);
-					lua_pop(L, 1);
-					return luaL_error(L, "unknown exception");
-				}
-
+				typedef typename make_integral_sequence<size_t, 0, sizeof...(Args)>::type cpp_index_seq;
+				call_constructor<T>(p, cpp_index_seq(), args);
+#if 1
+				// _G[name].metatable
+				lua_pushvalue(L, lua_upvalueindex(1)); // クラス名を取り出す
+				lua_getglobal(L, lua_tostring(L, -1));
+				int c = lua_gettop(L);
+				lua_getfield(L, c, "metatable");
+				lua_setmetatable(L, userdata); // インスタンスにメタテーブルを追加する
+				lua_pop(L, 2); // クラス名をポップ
+#else
 				lua_pushvalue(L, lua_upvalueindex(1)); // クラス名を取り出す
 				luaL_getmetatable(L, lua_tostring(L, -1)); // メタテーブルをプッシュ
 				lua_setmetatable(L, userdata); // インスタンスにメタテーブルを追加する
 				lua_pop(L, 1); // クラス名をポップ
+#endif
 
 				return 1; //インスタンスを返す
 			}
 		};
-
+		
 		// メンバ関数登録用オブジェクト
 		// 通常はdef_classを使えばいいはず
-		template<class T>
+		template<class T> // class Super = T>
 		class class_chain
 		{
 		private:
@@ -732,41 +712,54 @@ namespace rf
 			class_chain(lua_State* L, const string& name)
 				:name_(name), L_(L)
 			{
-				// local table = {}
+				// class_def = {}
 				lua_newtable(L_);
-				int table = lua_gettop(L_);
+				int class_def = lua_gettop(L_);
 
-				// レジストリ上にメタテーブルを登録し(重複の場合は無視)
-				// スタックにそのテーブルを乗せる
-				luaL_newmetatable(L_, name.c_str());
+#if 1
+				// グローバル環境にメタテーブルを登録する場合
+				lua_newtable(L_);
 				int metatable = lua_gettop(L_);
+#else
+				// レジストリ上にメタテーブルを登録する場合
+				// luaL_newmetatable(L_, name.c_str());
+				// int metatable = lua_gettop(L_);
+#endif
 
-				//getmetatableの動作を変更したい場合
-				// // metatable[__metatable] = metatable
+				// // getmetatableの動作を変更したい場合
+				// // metatable.__metatable = metatable
 				// lua_pushliteral(L_, "__metatable");
 				// lua_pushvalue(L_, metatable);
 				// lua_settable(L_, metatable);
 
-				// metatable[__index] = table
+				// metatable.__index = class_def
 				lua_pushliteral(L_, "__index");
-				lua_pushvalue(L_, table);
+				lua_pushvalue(L_, class_def);
 				lua_settable(L_, metatable);
 
-				// metatable[__gc] = delete
+				// metatable.__gc = delete
 				lua_pushliteral(L_, "__gc");
 				lua_pushcfunction(L_, &destructor<T>);
 				lua_settable(L_, metatable);
 
-				// デフォルトコンストラクタ、引数なしのnew関数でクラスを生成するようにする
-				// ためのメンバ関数メタテーブル、コンストラクタをluaに登録する
-				// table.new = new(metatable)
+#if 0
+				// デフォルトコンストラクタ
+				// class_def.new = function () metatable.. end
 				lua_pushliteral(L_, "new");
 				lua_pushvalue(L_, metatable);
 				lua_pushcclosure(L_, default_constructor<T>, 1);
-				lua_settable(L_, table);
+				lua_settable(L_, class_def);
+#endif
 
-				// _G[name] = table
-				lua_pushvalue(L_, table);
+#if 1
+				// class_def.metatable = (class_def, metatable)
+				lua_pushliteral(L_, "metatable");
+				lua_pushvalue(L_, metatable);
+				lua_settable(L_, class_def);
+#endif
+
+				// _G[name] = class_def
+				lua_pushvalue(L_, class_def);
 				lua_setglobal(L_, name.c_str());
 
 				// スタッククリア
@@ -781,31 +774,37 @@ namespace rf
 				// C++側引数->スタックの参照テーブル
 				lua_CFunction f = constructor<S(Args...)>::apply;
 	
-				// クラスをpush
+				// c = _G[name]
 				lua_getglobal(L_, name_.c_str());
 				int c = lua_gettop(L_);
+
+#if 1
+				// metatable = c.metatable -- コンストラクタ定義で追加済み
+				lua_getfield(L_, c, "metatable");
+				int metatable = lua_gettop(L_);
+#else
+				// クラスのメタテーブルをレジストリから拾いプッシュ
+				luaL_getmetatable(L_, name_.c_str());
+				int metatable = lua_gettop(L_);
+#endif
+
+				// methodtable = metatable[__index]
+				lua_getfield(L_, metatable, "__index");
+				int methodtable = lua_gettop(L_);
 
 				// c[name] = constructor
 				lua_pushstring(L_, name.c_str());
 				lua_pushcfunction(L_, f);
 				lua_settable(L_, c);
-	
-				// クラスのメタテーブルをプッシュ
-				luaL_getmetatable(L_, name_.c_str());
-				int metatable = lua_gettop(L_);
-	
-				// metatable[__index]をプッシュ
-				lua_getfield(L_, metatable, "__index");
-				int methodtable = lua_gettop(L_);
-	
-				// metatable[__index] = constructor と name 
+
+				// c.metatable.__index.[name] = function constructor() name_.. end 
 				lua_pushstring(L_, name.c_str());
 				lua_pushstring(L_, name_.c_str());
 				lua_pushcclosure(L_, f, 1);
 				lua_settable(L_, methodtable);
 	
 				// スタッククリア
-				lua_pop(L_, 2);
+				lua_pop(L_, 3);
 	
 				return *this;
 			}
@@ -818,16 +817,27 @@ namespace rf
 			{
 				// C++側引数->スタックの参照テーブル
 				typedef typename make_integral_sequence<size_t, 2, sizeof...(Args)+2>::type seq;
-				lua_CFunction closure = invoker<Ret(S::*)(Args...), seq>::apply;
+				lua_CFunction member_func = invoker<Ret(S::*)(Args...), seq>::apply;
 
+#if 1
+				// c = _G[name]
+				lua_getglobal(L_, name_.c_str());
+				int c = lua_gettop(L_);
+
+				// metatable = c.metatable -- コンストラクタ定義で追加済み
+				lua_getfield(L_, c, "metatable");
+				int metatable = lua_gettop(L_);
+#else
 				luaL_getmetatable(L_, name_.c_str());
 				int metatable = lua_gettop(L_);
+#endif
 
+				// methodtable = metatable.__index
 				lua_getfield(L_, metatable, "__index");
 				int methodtable = lua_gettop(L_);
 
+				// methodtable[method_name] = function method_name() member_func,.. end
 				lua_pushstring(L_, method_name.c_str());
-
 				// メンバ関数ポインタのサイズはsizeof(int)でなく特別
 				// メンバ関数は実体としてしかコピー出来ない
 				// つまり↓は通らない
@@ -836,11 +846,10 @@ namespace rf
 				void* buf = lua_newuserdata(L_, sizeof(std::array<mf_type, 1>));
 				auto a = static_cast<std::array<mf_type, 1>*>(buf);
 				(*a)[0] = f;
-
-				lua_pushcclosure(L_, closure, 1);
+				lua_pushcclosure(L_, member_func, 1);
 				lua_settable(L_, methodtable);
 
-				lua_pop(L_, 2);
+				lua_pop(L_, 3);
 
 				return *this;
 			}

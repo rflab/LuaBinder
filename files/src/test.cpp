@@ -37,7 +37,8 @@ int main(int argc, char** argv)
 
 	// クラスバインド
 	lua->def_class<Test>("Test")->
-		def("new2",  rf::LuaBinder::constructor<Test(string, int)>()).
+		def("new", rf::LuaBinder::constructor<Test()>()).
+		def("new2", rf::LuaBinder::constructor<Test(string, int)>()).
 		def("func1", &Test::func).
 		def("func2", &Test::func2).
 		def("func3", (int(Test::*)(int))    &Test::overload_func).
@@ -52,7 +53,7 @@ int main(int argc, char** argv)
 		"print(func3(100))              \n"
 		"print(func4(\"hoge\"))         \n"
 		"print(\"------<class>-------\")\n"
-		"c1 = Test.new()                \n"   // クラスインスタンス化
+		"c1 = Test:new()                \n"   // クラスインスタンス化
 		"c1:func1()                     \n"   // メンバ関数テスト
 		"print(c1:func2(100))           \n"
 		"print(c1:func3(200))           \n"
