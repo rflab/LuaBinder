@@ -16,7 +16,8 @@ int    overload_func(string s){ cout << "E " << s << endl; return 200; }
 class Test
 {
 public:
-	Test()                        { cout << "constructor" << endl; }
+	Test()                        { cout << "constructor1" << endl; }
+	Test(string str, int n)       { cout << "constructor2 " << str << n << endl; }
 	~Test()                       { cout << "destructor" << endl; }
 	void   func()                 { cout << "AA" << endl; }
 	string func2(int i)           { cout << "BB" << endl; return string("CC"); }
@@ -36,6 +37,7 @@ int main(int argc, char** argv)
 
 	// クラスバインド
 	lua->def_class<Test>("Test")->
+		def("new2",  rf::LuaBinder::constructor<Test(string, int)>()).
 		def("func1", &Test::func).
 		def("func2", &Test::func2).
 		def("func3", (int(Test::*)(int))    &Test::overload_func).
@@ -43,18 +45,28 @@ int main(int argc, char** argv)
 
 	// lua実行
 	lua->dostring(
-		"func1()                     \n"   // 関数テスト
-		"print(func2(100))           \n"
-		"print(func3(200))           \n"
-		"print(func3(100))           \n"
-		"print(func4(\"hoge\"))      \n"
-		"c = Test.new()              \n"   // クラスインスタンス化
-		"c:func1()                   \n"   // メンバ関数テスト
-		"print(c:func2(100))         \n"
-		"print(c:func3(200))         \n"
-		"print(c:func4(\"foo\"))     \n"
-		"c = nil                     \n"   // インスタンス破棄
-		"collectgarbage(\"collect\") \n");
+		"print(\"----<function>------\")\n"
+		"func1()                        \n"   // 関数テスト
+		"print(func2(100))              \n"
+		"print(func3(200))              \n"
+		"print(func3(100))              \n"
+		"print(func4(\"hoge\"))         \n"
+		"print(\"------<class>-------\")\n"
+		"c1 = Test.new()                \n"   // クラスインスタンス化
+		"c1:func1()                     \n"   // メンバ関数テスト
+		"print(c1:func2(100))           \n"
+		"print(c1:func3(200))           \n"
+		"print(c1:func4(\"foo\"))       \n"
+		"print(\"------<class2>------\")\n"
+		"c2 = Test:new2(\"hoge \", 100) \n"   // 引数ありコンストラクタでインスタンス化
+		"c2:func1()                     \n"
+		"print(c2:func2(100))           \n"
+		"print(c2:func3(200))           \n"
+		"print(c2:func4(\"foo\"))       \n"
+		"print(\"-----<release>------\")\n"
+		"c1 = nil                       \n"   // インスタンス破棄
+		"c2 = nil                       \n"   // インスタンス破棄
+		"collectgarbage(\"collect\")    \n");
 
 	// for windows console
 	cout << "wait input..";
