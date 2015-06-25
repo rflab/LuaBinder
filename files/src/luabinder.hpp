@@ -220,25 +220,35 @@ namespace rf
 		}
 
 		// どうすりゃいいかわからん
-		//template<typename T>
-		//static void push_stack(lua_State* L, T a, enable_if<is_number<T>::value>::type* = 0)
-		//{
-		//	lua_pushnumber(L, static_cast<lua_Number>(a));
-		//}
-		//
-		//template<typename T>
-		//static void push_stack(lua_State* L, T a, enable_if<!is_basic_type<T>::value>::type* = 0)
-		//{
-		//	void* p = lua_newuserdata(L, sizeof(T));
-		//	new(p) T(a);
-		//
-		//	lua_pushvalue(L, lua_upvalueindex(1)); // クラスを取り出す
-		//	lua_setmetatable(L, userdata); // メタテーブルに追加する
-		//
-		//	return 1; // インスタンス1つを返す
-		//
-		//	lua_pushnumber(L, static_cast<lua_Number>(a));
-		//}
+		// template<typename T>
+		// static void get_stack(lua_State* L, const T &userdata)
+		// {
+		// }
+		// 
+		// template<typename T>
+		// static void push_stack(lua_State* L, std::reference_wrapper<T> const& a)
+		// {
+		// }
+		// 
+		// template<typename T>
+		// static void push_stack(lua_State* L, T a, typedef Dummy = enable_if<is_number<T>::value>::type)
+		// {
+		// 	lua_pushnumber(L, static_cast<lua_Number>(a));
+		// }
+		// 
+		// template<typename T>
+		// static void push_stack(lua_State* L, T a, typename Dummy = enable_if<!is_basic_type<T>::value>::type)
+		// {
+		// 	void* p = lua_newuserdata(L, sizeof(T));
+		// 	new(p) T(a);
+		// 
+		// 	lua_pushvalue(L, lua_upvalueindex(1)); // クラスを取り出す
+		// 	lua_setmetatable(L, userdata); // メタテーブルに追加する
+		// 
+		// 	return 1; // インスタンス1つを返す
+		// 
+		// 	lua_pushnumber(L, static_cast<lua_Number>(a));
+		// }
 
 		// スタック操作 型推論でLua->C++
 		
@@ -592,6 +602,40 @@ namespace rf
 			return true;
 		}
 
+		// 例外を投げるのでtry必須
+		// 基本はdofileの中で呼ばれるコールバック関数に使い、dofileに例外を任せる
+		template<typename Ret, typename ... Args, typename enable_if<!std::is_same<Ret, void>::value>::type* = 0>
+		Ret call_function(const string &name, Args ... args)
+		{
+			// func = _G[name]
+			lua_getglobal(L_, name.c_str());
+
+			// func(args...)
+			auto i = { (push_stack(L_, args), 0)... };
+			bool ret = luaresult(lua_pcall(L_, sizeof...(Args), 1, 0));
+			if (!ret)
+				throw LUA_RUNTIME_ERROR("call_function() error");
+
+			return get_stack<Ret>(L_, -1);
+		}
+		
+		// 例外を投げるのでtry必須
+		// 基本はdofileの中で呼ばれるコールバック関数に使い、dofileに例外を任せる
+		template<typename Ret, typename ... Args, typename Dummy = enable_if<std::is_same<Ret, void>::value>::type>
+		void call_function(const string &name, Args ... args)
+		{
+			// func = _G[name]
+			lua_getglobal(L_, name.c_str());
+
+			// func(args...)
+			auto i = { (push_stack(L_, args), 0)... };
+			bool ret = luaresult(lua_pcall(L_, sizeof...(Args), 1, 0));
+			if (!ret)
+				throw LUA_RUNTIME_ERROR("call_function() error");
+
+			return;
+		}
+
 		// 関数バインド
 		//
 		// ＜使用例＞
@@ -630,7 +674,7 @@ namespace rf
 		}
 
 		template<class T>
-		unique_ptr<class_chain<T> > def_subclass(const string& sub_name, const string& super_name)
+		unique_ptr<class_chain<T> > def_class(const string& sub_name, const string& super_name/* =""*/)
 		{
 			auto p = make_unique<class_chain<T> >(L_, sub_name);
 
@@ -742,15 +786,6 @@ namespace rf
 				lua_pushcfunction(L_, &destructor<T>);
 				lua_settable(L_, metatable);
 
-#if 0
-				// デフォルトコンストラクタ
-				// class_def.new = function () metatable.. end
-				lua_pushliteral(L_, "new");
-				lua_pushvalue(L_, metatable);
-				lua_pushcclosure(L_, default_constructor<T>, 1);
-				lua_settable(L_, class_def);
-#endif
-
 #if 1
 				// class_def.metatable = (class_def, metatable)
 				lua_pushliteral(L_, "metatable");
@@ -812,7 +847,7 @@ namespace rf
 			// メンバ関数登録
 			// 関数と実体(クラスの元となるオブジェクト)をluaに登録する
 			template<class S, typename Ret, typename... Args>
-			const class_chain<T>& def(const string & method_name, Ret(S::*f)(Args...),
+			const class_chain<T>& def(const string &method_name, Ret(S::*f)(Args...),
 				typename enable_if<std::is_member_function_pointer<Ret(S::*)(Args...)>::value>::type* = 0) const
 			{
 				// C++側引数->スタックの参照テーブル
