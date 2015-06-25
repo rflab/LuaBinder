@@ -16,6 +16,7 @@ gcc (Ubuntu 4.9.2-10ubuntu13) 4.9.2も一応対応してたましたが、長ら
 files/src/test.cppが全て。
 
 ```cpp
+// test.cpp
 #include "luabinder.hpp"
 
      : (中略)
@@ -36,7 +37,7 @@ lua.def_class<Base>("Base")->
 	def("mem3", (void(Base::*)(string)) &Base::m2); // オーバーロード
 
 // 派生クラスバインド
-lua.def_class<Derived>("Derived", "Base")-> // 基底クラスはlua内の名前で指定
+lua.def_class<Derived>("Derived", "Base")-> // 基底クラスは登録済みの名前で指定
 	def("new", rf::LuaBinder::constructor<Derived(int)>()). // 引数ありコンストラクタ
 	def("mem1", &Derived::m1).
 	def("mem4", &Derived::m2); // オーバーライド
@@ -50,3 +51,38 @@ lua.dostring("function func(n) print(n) end");
 // lua関数をcppからコール
 lua->call_function<void>("func_lua", 10)
 ```
+
+```lua
+-- test.lua
+
+----<function>------
+print(func1())
+func2(1000)
+func3("hoge")
+
+------<base>--------
+c1 = Base:new()
+print(c1:mem1())
+c1:mem2(2000)
+c1:mem3("foo")
+
+------<derived>-----
+c2 = Derived:new(3000)
+print(c2:mem1())
+c2:mem2(4000)
+c2:mem3("bar")
+c2:mem4(c1)
+
+------<release>-----
+c1 = nil
+c2 = nil
+collectgarbage("collect")
+
+-----<def func>-----
+function func_lua(n)
+	print(n)
+	return n*2
+end
+```
+
+
