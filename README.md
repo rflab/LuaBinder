@@ -80,7 +80,7 @@ end
 
 ## サンプルのビルド方法
 
-Lua5.3.0＆VC++12で動作確認済み
+Lua5.3.0＆VC++12で動作確認済み。
 gcc (Ubuntu 4.9.2-10ubuntu13) 4.9.2も一応対応してたましたが、長らくビルド確認してません。
 
 * VisualStudio2013の場合は、visual_studio_solution/luabinder.slnを開いてF5
