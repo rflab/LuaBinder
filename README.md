@@ -1,16 +1,8 @@
 # lua_binder
 
 Luaのc++バインダです。
-前はluabindを使っていたのですが長らくサポートされておらず必要な機能だけ作ることにしました。
+以前はluabindを使っていたのですが、長らくサポートされておらず必要な機能だけ作ることにしました。
 luabindとxxluaを参考にしています。
-
-## ビルド方法
-
-Lua5.3.0＆VC++12で動作確認済み
-* VisualStudio2013の場合は、visual_studio_solution/luabinder.slnを開いてF5
-
-gcc (Ubuntu 4.9.2-10ubuntu13) 4.9.2も一応対応してたましたが、長らくビルド確認してません。
-* gccの場合はfiles/srcでmake build
 
 ## 使い方
 files/src/test.cppが全て。
@@ -85,4 +77,10 @@ function func_lua(n)
 end
 ```
 
+## サンプルのビルド方法
 
+Lua5.3.0＆VC++12で動作確認済み
+gcc (Ubuntu 4.9.2-10ubuntu13) 4.9.2も一応対応してたましたが、長らくビルド確認してません。
+
+* VisualStudio2013の場合は、visual_studio_solution/luabinder.slnを開いてF5
+* gccの場合はfiles/srcでmake build
