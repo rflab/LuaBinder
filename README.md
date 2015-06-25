@@ -41,7 +41,7 @@ lua.dofile("test.lua");
 lua.dostring("function func(n) print(n) end");
 
 // lua関数をcppからコール
-lua->call_function<void>("func_lua", 10)
+lua.call_function<void>("func_lua", 10)
 ```
 
 ```lua
