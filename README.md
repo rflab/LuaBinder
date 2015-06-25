@@ -20,6 +20,7 @@ files/src/test.cppが全て。
 
      : (中略)
 
+// lua_State作成
 LuaBinder lua;
 
 // 関数バインド
