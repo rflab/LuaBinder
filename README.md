@@ -13,20 +13,33 @@ luabindが非常に難解だったので、xxluaを参考にしました。
 ## 使い方
 files/src/test.cppが全てです。
 
+```cpp
     LuaBinder lua;
-    	
-    // 関数バインド
-    lua.def("func1", func);
-    lua.def("func2", func2);
-    lua.def("func3", (int(*)(int))    overload_func);
-    lua.def("func4", (int(*)(string)) overload_func);
-
-    // クラスバインド
-    lua.def_class<Test>("Test")->
-    	def("func1", &Test::func).
-    	def("func2", &Test::func2).
-    	def("func3", (int(Test::*)(int))    &Test::overload_func).
-    	def("func4", (int(Test::*)(string)) &Test::overload_func);
     
-    // ファイルを実行
+	// 関数バインド
+	lua.def("func1", f1);
+	lua.def("func2", (void(*)(int))    f2); // オーバーロード
+	lua.def("func3", (void(*)(string)) f2); // オーバーロード
+
+	// クラスバインド
+	lua.def_class<Base>("Base")->
+		def("new", rf::LuaBinder::constructor<Base()>()).
+		def("mem1", &Base::m1).
+		def("mem2", (void(Base::*)(int))    &Base::m2). // オーバーロード
+		def("mem3", (void(Base::*)(string)) &Base::m2); // オーバーロード
+
+	// 派生クラスバインド
+	lua.def_class<Derived>("Derived", "Base")-> // 基底クラスはlua内の名前で指定
+		def("new", rf::LuaBinder::constructor<Derived(int)>()). // 引数ありコンストラクタ
+		def("mem1", &Derived::m1).
+		def("mem4", &Derived::m2); // オーバーライド
+    
+    // luaのファイルを実行
     lua.dofile("test.lua");
+
+    // luaの文を実行
+    lua.dostring("function func(n) print(n) end");
+
+    // lua関数をcppからコール
+    lua->call_function<void>("func_lua", 10)
+```
