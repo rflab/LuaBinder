@@ -5,7 +5,7 @@ Luaのc++バインダです。
 luabindとxxluaを参考にしています。
 
 ## 使い方
-files/src/test.cpp 参照のこと
+主な使い方はfiles/src/test.cpp 参照のこと
 
 ```cpp
 // test.cpp
@@ -75,7 +75,6 @@ collectgarbage("collect")
 -----<def func>-----
 function func_lua(n)
 	print(n)
-	return n*2
 end
 ```
 
