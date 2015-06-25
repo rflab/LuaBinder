@@ -5,7 +5,7 @@ Luaのc++バインダです。
 luabindとxxluaを参考にしています。
 
 ## 使い方
-files/src/test.cppが全て。
+files/src/test.cpp 参照のこと
 
 ```cpp
 // test.cpp
