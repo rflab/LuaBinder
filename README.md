@@ -79,9 +79,10 @@ end
 ```
 
 ## サンプルのビルド方法
-
 Lua5.3.0＆VC++12で動作確認済み。
-少し前までgcc (Ubuntu 4.9.2-10ubuntu13) 4.9.2も一応対応していましたが、最近はビルド確認してません。
+gcc (Ubuntu 4.9.2-10ubuntu13) 4.9.2も気まぐれにビルド確認しています。
 
 * VisualStudio2013の場合は、visual_studio_solution/luabinder.slnを開いてF5
 * gccの場合はfiles/srcでmake build
+
+
