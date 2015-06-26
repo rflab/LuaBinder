@@ -14,22 +14,27 @@
 #include "lua.hpp"
 
 // コンパイラ依存？
-#define nullptr NULL
-#define final
-#define throw(x)
 
 // これをC++関数内でthrowするとLua関数の戻り値をfalseになる
 // 古いコンパイラだとto_stringが使えない
-#ifdef _MSC_VER
+#if defined(_MSC_VER) && (_MSC_VER >= 1800)
+	#define LUA_RUNTIME_ERROR(x) std::runtime_error(std::string("c++ runtime exception. L") + ::std::to_string(__LINE__) + " " + __FUNCTION__ + ":" + x)
+	#define LUA_DOMEIN_ERROR(x) std::domain_error(std::string("c++ domein error exception. L") + ::std::to_string(__LINE__) + " " + __FUNCTION__ + ":" + x)
+	#define LUA_ARGUMENT_ERROR(x) std::invalid_argument(std::string("c++ invalid argument exception. L") + ::std::to_string(__LINE__) + " " + __FUNCTION__ + ":" + x)
+#elif defined(__GNUC__) && __cplusplus >= 201300L // __GNUC_PREREQ(4, 9)
 	#define LUA_RUNTIME_ERROR(x) std::runtime_error(std::string("c++ runtime exception. L") + ::std::to_string(__LINE__) + " " + __FUNCTION__ + ":" + x)
 	#define LUA_DOMEIN_ERROR(x) std::domain_error(std::string("c++ domein error exception. L") + ::std::to_string(__LINE__) + " " + __FUNCTION__ + ":" + x)
 	#define LUA_ARGUMENT_ERROR(x) std::invalid_argument(std::string("c++ invalid argument exception. L") + ::std::to_string(__LINE__) + " " + __FUNCTION__ + ":" + x)
 #else
+	// unsupported
 	#define LUA_RUNTIME_ERROR(x) std::runtime_error("c++ runtime exception.")
 	#define LUA_DOMEIN_ERROR(x) std::domain_error("c++ omein error exception.")
 	#define LUA_ARGUMENT_ERROR(x) std::invalid_argument("c++ invalid argument exception.")
 	#define make_unique make_shared
 	#define unique_ptr shared_ptr
+	#define nullptr NULL
+	#define final
+	#define throw(x)
 #endif
 
 namespace rf
@@ -63,6 +68,7 @@ namespace rf
 			return true;
 		}
 		
+		// 今のスタック状態をprintf（スタティック関数版）
 		static bool  dump_stack(lua_State *L)
 		{
 			int stack_size = lua_gettop(L);
@@ -98,11 +104,13 @@ namespace rf
 			return true;
 		}
 
+		// 今のスタック状態をprintf（メンバ関数版）
 		bool dump_stack()
 		{
 			return dump_stack(L_);
 		}
 
+		// luaのエラーコードを判定してboolに変換
 		bool luaresult(int lua_ret)
 		{			
 			if (lua_ret != LUA_OK)
@@ -114,6 +122,7 @@ namespace rf
 			return true;
 		}
 
+		// lua_pcallに乗せるべき関数
 		static int traceback(lua_State* L)
 		{
 			dump_stack(L);
@@ -178,13 +187,24 @@ namespace rf
 				&& ((std::is_integral<T>::value)
 				|| (std::is_floating_point<T>::value)));
 		};
-
+	public:
 		template<typename T>
 		struct is_string
 		{
+# if 0
+			// うまくいかない理由がわからんorz
 			static const bool value =
-				((std::is_same<T, string>::value)
-				|| (std::is_same<T, char const*>::value));
+				// referenceとconstの順番が逆だとしくじる、なんでだーorz
+				// ((std::is_same <typename std::remove_reference<typename std::remove_const<T>::type >::type, string >::value)
+				((std::is_same <typename std::remove_const<typename std::remove_reference<T>::type >::type, string >::value)
+				|| (std::is_same<typename std::remove_const<T>::type, char*>::value));
+#else
+			static const bool value =
+				((std::is_same <T, const string& >::value)
+				|| (std::is_same <T, string >::value)
+				|| (std::is_same <T, const char* >::value)
+				|| (std::is_same <T, char* >::value));
+#endif
 		};
 
 		template<typename T>
@@ -303,9 +323,9 @@ namespace rf
 		}
 
 		template<typename...Args, size_t...Ixs>
-		static tuple<Args...> get_tuple(lua_State* L, intetgral_sequence<size_t, Ixs...>, typename enable_if<sizeof...(Args) != 0>::type* = 0)
+		static tuple<typename std::remove_reference<Args>::type...> get_tuple(lua_State* L, intetgral_sequence<size_t, Ixs...>, typename enable_if<sizeof...(Args) != 0>::type* = 0)
 		{
-			return tuple<Args...>(get_stack<Args>(L, Ixs)...);
+			return tuple<typename std::remove_reference<Args>::type...>(get_stack<Args>(L, Ixs)...);
 		}
 
 		template<typename...Args>
@@ -399,6 +419,7 @@ namespace rf
 				auto self = static_cast<T*>(lua_touserdata(L, 1));
 				if (self == nullptr){
 					cout << "no self specified" << endl;
+					throw LUA_RUNTIME_ERROR("self is nil");// 多分ありえない
 				}
 
 				typedef typename std::remove_reference<Ret(T::*)(Args...)>::type mf_type;
@@ -429,6 +450,7 @@ namespace rf
 				auto self = static_cast<T*>(lua_touserdata(L, 1));
 				if (self == nullptr){
 					cout << "no self specified" << endl;
+					throw LUA_RUNTIME_ERROR("self is nil");// 多分ありえない
 				}
 		
 				typedef typename std::remove_reference<void(T::*)(Args...)>::type mf_type;
@@ -602,9 +624,10 @@ namespace rf
 			return true;
 		}
 
+		// Lua関数をC++からコール
 		// 例外を投げるのでtry必須
 		// 基本はdofileの中で呼ばれるコールバック関数に使い、dofileに例外を任せる
-		template<typename Ret, typename ... Args, typename enable_if<!std::is_same<Ret, void>::value>::type* = 0>
+		template<typename Ret, typename ... Args, typename Dummy = typename enable_if<!std::is_same<Ret, void>::value>::type*>
 		Ret call_function(const string &name, Args ... args)
 		{
 			// func = _G[name]
@@ -612,6 +635,7 @@ namespace rf
 
 			// func(args...)
 			auto i = { (push_stack(L_, args), 0)... };
+			(void)i;
 			bool ret = luaresult(lua_pcall(L_, sizeof...(Args), 1, 0));
 			if (!ret)
 				throw LUA_RUNTIME_ERROR("call_function() error");
@@ -619,9 +643,10 @@ namespace rf
 			return get_stack<Ret>(L_, -1);
 		}
 		
+		// Lua関数をC++からコール（戻り値void版）
 		// 例外を投げるのでtry必須
 		// 基本はdofileの中で呼ばれるコールバック関数に使い、dofileに例外を任せる
-		template<typename Ret, typename ... Args, typename Dummy = enable_if<std::is_same<Ret, void>::value>::type>
+		template<typename Ret, typename ... Args, typename Dummy = typename enable_if<std::is_same<Ret, void>::value>::type*>
 		void call_function(const string &name, Args ... args)
 		{
 			// func = _G[name]
@@ -657,22 +682,27 @@ namespace rf
 		}
 
 		// クラスバインド
-		//
-		// ＜使用例＞
-		// LuaBinder lua;
-		// lua.def_class<Test>("Test")->
-		//	def("func1", &Test::func).
-		//	def("func2", &Test::func2).
-		//	def("func3", (int(Test::*)(int))    &Test::overload_func).
-		//	def("func4", (int(Test::*)(string)) &Test::overload_func);
 		template<class T> class class_chain;
 
+		// 基底クラスバインド
+		//
+		// ＜使用例＞
+		// lua->def_class<Base>("Base")->
+		// 	def("new", rf::LuaBinder::constructor<Base()>()).
+		// 	def("mem1", &Base::m1).
+		// 	def("mem2", (void(Base::*)(int))    &Base::m2).
+		// 	def("mem3", (void(Base::*)(string)) &Base::m2);
 		template<class T>
 		unique_ptr<class_chain<T> > def_class(const string& name)
 		{
 			return make_unique<class_chain<T> >(L_, name);
 		}
 
+		// 派生クラスバインド
+		// lua->def_class<Derived>("Derived", "Base")->
+		// 	def("new", rf::LuaBinder::constructor<Derived(int)>()).
+		// 	def("mem1", &Derived::m1).
+		// 	def("mem4", &Derived::m2);
 		template<class T>
 		unique_ptr<class_chain<T> > def_class(const string& sub_name, const string& super_name/* =""*/)
 		{
@@ -744,7 +774,7 @@ namespace rf
 		};
 		
 		// メンバ関数登録用オブジェクト
-		// 通常はdef_classを使えばいいはず
+		// def_classで生成し、defを呼び出して関数を登録するのに使ってる
 		template<class T> // class Super = T>
 		class class_chain
 		{
@@ -892,4 +922,17 @@ namespace rf
 	};
 }
 
+
+#if defined(_MSC_VER) && (_MSC_VER >= 1800)
+#elif defined(__GNUC__) && __cplusplus >= 201300L // __GNUC_PREREQ(4, 9)
+	#undef nullptr
+	#undef final
+	#undef throw
+#else
+	#define make_unique
+	#define unique_ptr
+	#define nullptr
+	#define final
+	#define throw
+#endif
 #endif

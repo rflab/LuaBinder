@@ -34,7 +34,7 @@ void   f2(int    n) { cout << "f2" << n << endl; }
 void   f2(string s) { cout << "f2 overload" << s << endl; }
 void   f3(Base&  b) { cout << "f3" << b.m1() << endl; } //未対応
 
-int main(int argc, char** argv)
+int main(int , char** )
 {
 	auto lua = make_unique<rf::LuaBinder>();
 

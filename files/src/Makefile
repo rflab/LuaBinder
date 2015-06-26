@@ -1,11 +1,25 @@
-.PHONY:build rebuild clean
+.PHONY:build rebuild clean help prof
 
-rebuild: build clean ;
-
-build:
-	make a -C lua
-	g++ -std=c++11 -ldl -I./lua test.cpp lua/liblua.a
+rebuild: clean build ;
 
 clean:
-	-rm a.out
+	-rm -Rf ../bin
 	-make clean -C lua
+
+build:
+	mkdir -p ../bin
+	make a -C lua
+	g++ -std=c++14 -ldl -Wall -Wextra -I./lua test.cpp lua/liblua.a -o ../bin/a.out
+
+prof:
+	mkdir -p ../bin
+	make a -C lua
+	g++ -pg -std=c++14 -ldl -Wall -Wextra -I./lua test.cpp lua/liblua.a -o ../bin/prof.out
+	#./prof.out 
+	#gprof prof.out gmon.out
+
+help:
+	echo 'build'
+	echo 'rebuild'
+	echo 'clean'
+	echo 'prof -> enable -pg option'
