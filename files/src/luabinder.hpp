@@ -627,7 +627,7 @@ namespace rf
 		// Lua関数をC++からコール
 		// 例外を投げるのでtry必須
 		// 基本はdofileの中で呼ばれるコールバック関数に使い、dofileに例外を任せる
-		template<typename Ret, typename ... Args, typename Dummy = typename enable_if<!std::is_same<Ret, void>::value>::type*>
+		template<typename Ret, typename ... Args, typename Dummy = typename enable_if<!std::is_same<Ret, void>::value>::type>
 		Ret call_function(const string &name, Args ... args)
 		{
 			// func = _G[name]
@@ -646,7 +646,7 @@ namespace rf
 		// Lua関数をC++からコール（戻り値void版）
 		// 例外を投げるのでtry必須
 		// 基本はdofileの中で呼ばれるコールバック関数に使い、dofileに例外を任せる
-		template<typename Ret, typename ... Args, typename Dummy = typename enable_if<std::is_same<Ret, void>::value>::type*>
+		template<typename Ret, typename ... Args, typename Dummy = typename enable_if<std::is_same<Ret, void>::value>::type>
 		void call_function(const string &name, Args ... args)
 		{
 			// func = _G[name]
