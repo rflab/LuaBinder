@@ -1,8 +1,7 @@
 # lua_binder
 
 LuaのC++バインダです。
-以前はluabindを使っていたのですが、長らくサポートされておらず必要な機能だけ作ることにしました。
-luabindとxxluaを参考にしています。
+必要な実装はファイル一個に収められています。（files/src/luabinder.hpp）
 
 ## 使い方
 主な使い方はfiles/src/test.cpp 参照のこと
@@ -84,5 +83,9 @@ gcc (Ubuntu 4.9.2-10ubuntu13) 4.9.2も気まぐれにビルド確認していま
 
 * VisualStudio2013の場合は、visual_studio_solution/luabinder.slnを開いてF5
 * gccの場合はfiles/srcでmake build
+
+## その他
+以前はluabindを使っていたのですが、長らくサポートされておらず必要な機能だけ作ることにしました。
+luabindとxxluaを参考にしています。
 
 
