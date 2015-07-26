@@ -36,7 +36,7 @@ void   f3(Base&  b) { cout << "f3" << b.m1() << endl; } //未対応
 
 int main(int , char** )
 {
-	auto lua = make_unique<rf::LuaBinder>();
+	auto lua = make_unique<rf::wrapper::LuaBinder>();
 
 	// 関数バインド
 	lua->def("func1", f1);
@@ -45,14 +45,14 @@ int main(int , char** )
 
 	// クラスバインド
 	lua->def_class<Base>("Base")->
-		def("new", rf::LuaBinder::constructor<Base()>()).
+		def("new", rf::wrapper::LuaBinder::constructor<Base()>()).
 		def("mem1", &Base::m1).
 		def("mem2", (void(Base::*)(int))    &Base::m2).
 		def("mem3", (void(Base::*)(string)) &Base::m2);
 
 	// 派生クラスバインド
 	lua->def_class<Derived>("Derived", "Base")->
-		def("new", rf::LuaBinder::constructor<Derived(int)>()).
+		def("new", rf::wrapper::LuaBinder::constructor<Derived(int)>()).
 		def("mem1", &Derived::m1).
 		def("mem4", &Derived::m2);
 
