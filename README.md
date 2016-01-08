@@ -1,4 +1,4 @@
-# lua_binder
+# Lua Binder
 
 LuaのC++バインダです。
 必要な実装はファイル一個に収められています。（files/src/luabinder.hpp）
