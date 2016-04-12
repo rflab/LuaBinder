@@ -6,6 +6,8 @@ Release/
 *.suo
 *.log
 *.bak
+*.ilk
+*.pdb
 
 *.dat
 *.wav

@@ -114,10 +114,12 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <IncludePath>..\..\src\lua;$(IncludePath)</IncludePath>
     <TargetName>test</TargetName>
+    <OutDir>$(SolutionDir)../bin\</OutDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <IncludePath>..\..\src\lua;$(IncludePath)</IncludePath>
     <TargetName>test</TargetName>
+    <OutDir>$(SolutionDir)../bin\</OutDir>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>

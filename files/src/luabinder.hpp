@@ -32,15 +32,15 @@
 	#define LUA_ARGUMENT_ERROR(x) std::invalid_argument(std::string("c++ invalid argument exception. L")\
 		 + ::std::to_string(__LINE__) + " " + __FUNCTION__ + ":" + x)
 #else
-	// unsupported
-	#define LUA_RUNTIME_ERROR(x) std::runtime_error("c++ runtime exception.")
-	#define LUA_DOMEIN_ERROR(x) std::domain_error("c++ omein error exception.")
-	#define LUA_ARGUMENT_ERROR(x) std::invalid_argument("c++ invalid argument exception.")
-	#define make_unique make_shared
-	#define unique_ptr shared_ptr
-	#define nullptr NULL
-	#define final
-	#define throw(x)
+	// // unsupported
+	// #define LUA_RUNTIME_ERROR(x) std::runtime_error("c++ runtime exception.")
+	// #define LUA_DOMEIN_ERROR(x) std::domain_error("c++ omein error exception.")
+	// #define LUA_ARGUMENT_ERROR(x) std::invalid_argument("c++ invalid argument exception.")
+	// #define make_unique make_shared
+	// #define unique_ptr shared_ptr
+	// #define nullptr NULL
+	// #define final
+	// #define throw(x)
 #endif
 
 namespace rf
@@ -229,6 +229,10 @@ namespace rf
 
 			// スタック操作 オーバーロードでC++->Lua
 
+			static void push_stack(lua_State* L)
+			{
+			}
+
 			static void push_stack(lua_State* L, bool a)
 			{
 				lua_pushboolean(L, a);
@@ -356,6 +360,12 @@ namespace rf
 						push_stack(L, r);
 						return 1;
 					}
+					catch (const std::exception &e)
+					{
+						push_stack(L, false);
+						push_stack(L, e.what());
+						return 2;
+					}
 					catch (const False &)
 					{
 						push_stack(L, false);
@@ -383,6 +393,12 @@ namespace rf
 					{
 						f(get_stack<Args>(L, Ixs)...);
 						return 0;
+					}
+					catch (const std::exception &e)
+					{
+						push_stack(L, false);
+						push_stack(L, e.what());
+						return 2;
 					}
 					catch (const False &)
 					{
@@ -445,6 +461,12 @@ namespace rf
 						push_stack(L, r);
 						return 1;
 					}
+					catch (const std::exception &e)
+					{
+						push_stack(L, false);
+						push_stack(L, e.what());
+						return 2;
+					}
 					catch (const False &)
 					{
 						push_stack(L, false);
@@ -482,6 +504,12 @@ namespace rf
 					{
 						(self->*fp)(get_stack<Args>(L, Ixs)...);
 						return 0;
+					}
+					catch (const std::exception &e)
+					{
+						push_stack(L, false);
+						push_stack(L, e.what());
+						return 2;
 					}
 					catch (const False &)
 					{
@@ -690,8 +718,7 @@ namespace rf
 				lua_getglobal(L_, name.c_str());
 
 				// func(args...)
-				auto i = { (push_stack(L_, args), 0)... };
-				(void)i;
+				push_stack(L_, args...);
 				bool ret = luaresult(lua_pcall(L_, sizeof...(Args), 1, 0));
 				if (!ret)
 					throw LUA_RUNTIME_ERROR("call_function() error");
@@ -710,8 +737,8 @@ namespace rf
 				lua_getglobal(L_, name.c_str());
 
 				// func(args...)
-				auto i = { (push_stack(L_, args), 0)... };
-				bool ret = luaresult(lua_pcall(L_, sizeof...(Args), 1, 0));
+				push_stack(L_, args...);
+				bool ret = luaresult(lua_pcall(L_, sizeof...(Args), 0, 0));
 				if (!ret)
 					throw LUA_RUNTIME_ERROR("call_function() error");
 
@@ -1004,10 +1031,10 @@ namespace rf
 #if defined(_MSC_VER) && (_MSC_VER >= 1800)
 #elif defined(__GNUC__) && __cplusplus >= 201300L // __GNUC_PREREQ(4, 9)
 #else
-	#define make_unique
-	#define unique_ptr
-	#define nullptr
-	#define final
-	#define throw
+	// #undef make_unique
+	// #undef unique_ptr
+	// #undef nullptr
+	// #undef final
+	// #undef throw
 #endif
 #endif
