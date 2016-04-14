@@ -3,10 +3,10 @@
 [日本語](https://github.com/rflab/LuaBinder/blob/master/README_jp.md)
 
 This is Simple Lua / C++ binder.
-The implementation is in only one hpp file（[files/src/luabinder.hpp](https://github.com/rflab/stream_reader/blob/master/README_detail.md)）
+The implementation is in only one hpp file（[files/src/luabinder.hpp](https://github.com/rflab/LuaBinder/blob/master/files/src/luabinder.hpp)）
 
 ## How to use
-Please see also example .. files/src/test.cpp
+Please see also example .. [files/src/test.cpp](https://github.com/rflab/LuaBinder/blob/master/files/src/test.cpp)
 
 ```cpp
 // test.cpp
@@ -14,7 +14,7 @@ Please see also example .. files/src/test.cpp
 // include (this project)
 #include "luabinder.hpp"
 
-     : (中略)
+     : 
 
 // Create lua_State
 rf::wrapper::LuaBinder lua;
