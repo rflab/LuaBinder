@@ -1,6 +1,6 @@
 # Lua Binder
 
-[日本語](https://github.com/rflab/stream_reader/blob/master/README_detail.md)
+[日本語](https://github.com/rflab/LuaBinder/blob/master/README_jp.md)
 
 This is Simple Lua / C++ binder.
 The implementation is in only one hpp file（[files/src/luabinder.hpp](https://github.com/rflab/stream_reader/blob/master/README_detail.md)）
