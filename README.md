@@ -1,47 +1,49 @@
 # Lua Binder
 
-LuaのC++バインダです。
-必要な実装はファイル一個に収められています。（files/src/luabinder.hpp）
+[日本語](https://github.com/rflab/stream_reader/blob/master/README_detail.md)
 
-## 使い方
-主な使い方はfiles/src/test.cpp 参照のこと
+This is Simple Lua C++ function/class binder.
+The implementation is in only one hpp file（files/src/luabinder.hpp）
+
+## How to use
+Please see also example .. files/src/test.cpp
 
 ```cpp
 // test.cpp
 
-// インクルード
+// include (this project)
 #include "luabinder.hpp"
 
      : (中略)
 
-// lua_State作成
+// Create lua_State
 rf::wrapper::LuaBinder lua;
 
-// 関数バインド
+// function bindding
 lua.def("func1", f1);
-lua.def("func2", (void(*)(int))    f2); // オーバーロード
-lua.def("func3", (void(*)(string)) f2); // オーバーロード
+lua.def("func2", (void(*)(int))    f2); // function overloading
+lua.def("func3", (void(*)(string)) f2); // function overloading
 
-// クラスバインド
+// class bindding
 lua.def_class<Base>("Base")->
 	def("new", rf::wrapper::LuaBinder::constructor<Base()>()).
 	def("mem1", &Base::m1).
-	def("mem2", (void(Base::*)(int))    &Base::m2). // オーバーロード
-	def("mem3", (void(Base::*)(string)) &Base::m2); // オーバーロード
+	def("mem2", (void(Base::*)(int))    &Base::m2). // member function overloading
+	def("mem3", (void(Base::*)(string)) &Base::m2); // member function overloading
 
-// 派生クラスバインド
-lua.def_class<Derived>("Derived", "Base")-> // 基底クラスは登録済みの名前で指定
-	def("new", rf::wrapper::LuaBinder::constructor<Derived(int)>()). // 引数ありコンストラクタ
+// subclass binding
+lua.def_class<Derived>("Derived", "Base")-> // specify base class by registered name, in this case "Base"
+	def("new", rf::wrapper::LuaBinder::constructor<Derived(int)>()). // added constructor with int argument
 	def("mem1", &Derived::m1).
-	def("mem4", &Derived::m2); // オーバーライド
+	def("mem4", &Derived::m2); // override
 
-// luaのファイルを実行
+// execute lua file
 lua.dofile("test.lua");
 
-// luaの文を実行
+// execute lua string
 lua.dostring("function func(n) print(n) end");
 
-// lua関数をcppからコール
+// call lua function from c++ code
 lua.call_function<void>("func_lua", 10)
 ```
 
@@ -77,15 +79,11 @@ function func_lua(n)
 end
 ```
 
-## サンプルのビルド方法
-Lua5.3.0＆VC++12で動作確認済み。
-gcc (Ubuntu 4.9.2-10ubuntu13) 4.9.2も気まぐれにビルド確認しています。
+## How to build sample project
+build check is in Lua5.3.0＆VC++12, sometimes gcc (Ubuntu 4.9.2-10ubuntu13) 4.9.2 also.
 
-* VisualStudio2013の場合は、visual_studio_solution/luabinder.slnを開いてF5
-* gccの場合はfiles/srcでmake build
+* VisualStudio2013 --> open visual_studio_solution/luabinder.sln then "F5"
+* gcc --> cd files/src; make build
 
-## その他
-以前はluabindを使っていたのですが、長らくサポートされておらず必要な機能だけ作ることにしました。
-luabindとxxluaを参考にしています。
-
-
+## others
+luabind and xxlua has been reference to implement this project.
