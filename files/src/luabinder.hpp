@@ -229,6 +229,13 @@ namespace rf
 
 			// スタック操作 オーバーロードでC++->Lua
 
+			template<typename H, typename... T>
+			static void push_stack(lua_State* L, H h, T... t)
+			{
+				push_stack(L, h);
+				push_stack(L, t...);
+			}
+
 			static void push_stack(lua_State* L)
 			{
 			}

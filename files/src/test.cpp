@@ -56,7 +56,7 @@ int main(int , char** )
 		def("mem1", &Derived::m1).
 		def("mem4", &Derived::m2);
 
-#if 0 
+#if 0
 	// lua実行、lua->cpp呼び出し
 	lua->dostring(
 		"print(\"----<function>------\") \n"
@@ -83,25 +83,17 @@ int main(int , char** )
 		"collectgarbage(\"collect\")     \n"
 		"                                \n"
 		"print(\"-----<def func>-----\") \n"
-		"function func_lua(n)            \n"
-		"	print(n)                     \n"
-		"	return n*2                   \n"
+		"function func_lua(a, b, c)      \n"
+		"	print(a, b, c)               \n"
+		"	return 100                   \n"
 		"end                             \n");
 	
 	// cpp->lua呼び出し
 	cout << "call_function, ret = "
 		<< lua->call_function<int>("func_lua", 111) << endl;
-#elif 1
-	// bin/sample1
-	lua->dofile("sample1/test.lua");
-	for(int i=0; i<3; i++)
-	{
-		// if error happens in Lua code, call_function will throw exception.
-		lua->call_function<void>("OnTick", i);
-	}
 #else
-	// bin/sample2
-	lua->dofile("sample2/test.lua");
+	// do file test
+	lua->dofile("sample/test.lua");
 	for (int i = 0; i<3; i++)
 	{
 		// if error happens in Lua code, call_function will throw exception.

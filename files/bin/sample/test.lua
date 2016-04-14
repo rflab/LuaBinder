@@ -1,5 +1,5 @@
 -- load classes
-package.path = "sample2/scripts/?.lua"
+package.path = "sample/scripts/?.lua"
 require("one")
 require("two")
 require("three")
@@ -14,10 +14,8 @@ table.insert(obj_table, three:new(200))
 table.insert(obj_table, three:new(300))
 
 -- tick function will be called from C++
-local count = 0
-function OnTick()
-	count = count + 1
-	print("----"..count.."----")
+function OnTick(i)
+	print("----"..i.."----")
 
 	-- call each OnTick function
 	for i, v in ipairs(obj_table) do
