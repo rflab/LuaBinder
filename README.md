@@ -87,5 +87,4 @@ build check is in Lua5.3.0＆VC++12, sometimes gcc (Ubuntu 4.9.2-10ubuntu13) 4.9
 
 ## others
 [luabind](https://github.com/luabind/luabind) and [xxlua](https://github.com/bigsleep/xxlua) has been reference to implement this project.
-
 Thank you.
